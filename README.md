@@ -18,6 +18,55 @@ The **Tirana Bus Usage Analysis** project aims to uncover patterns in bus usage 
 
 `cd tirana-bus-use-analysis`
 
+## 🛠️ Backend Setup
+The backend provides the necessary API endpoints for the frontend to fetch and process bus usage data. Here's how to set it up:
+
+1. Navigate to the Backend Directory
+Assuming your backend resides in the backend/ folder:
+
+'cd backend'
+
+### 2. Set Up a Virtual Environment
+Create a virtual environment for dependency management:
+
+'python3 -m venv env
+source env/bin/activate  # On macOS/Linux
+env\Scripts\activate     # On Windows'
+
+### 3. Install Backend Dependencies
+Install the required Python packages:
+
+'pip install -r requirements.txt'
+
+### 4. Configure the Database
+Apply migrations to set up the database schema:
+
+'python manage.py migrate'
+
+### 5. Load Initial Data (Optional)
+If you have initial data (like sample bus usage data), load it into the database:
+
+'python manage.py loaddata initial_data.json'
+
+### 6. Start the Development Server
+Run the backend development server:
+
+'python manage.py runserver'
+The backend will now be accessible at 'http://127.0.0.1:8000'.
+
+## 🔗 Connecting Frontend with Backend
+To connect the frontend with the backend, ensure the API base URL in your frontend code matches the backend server's URL (e.g., http://127.0.0.1:8000 for local development).
+
+Update the API configuration in src/services/api.js:
+
+'const API_BASE_URL = "http://127.0.0.1:8000";
+
+export const fetchAggregatedData = async () => {
+    const response = await fetch(`${API_BASE_URL}/your-api-endpoint/`);
+    return await response.json();
+};'
+
+
 ### Install Dependencies
 
 `npm install`
