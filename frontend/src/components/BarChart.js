@@ -16,8 +16,8 @@ const BarChart = ({ data }) => {
         const svg = d3
             .select(chartRef.current)
             .append("svg")
-            .attr("width", width)
-            .attr("height", height);
+            .attr("viewBox", `0 0 ${width} ${height}`)
+            .attr("preserveAspectRatio", "xMidYMid meet");
 
         const xScale = d3
             .scaleBand()
@@ -32,17 +32,17 @@ const BarChart = ({ data }) => {
 
         svg.append("g")
             .attr("transform", `translate(0,${height - margin.bottom})`)
-            .call(d3.axisBottom(xScale));
+            .call(d3.axisBottom(xScale).tickFormat((d) => `Bus ${d}`));
 
         svg.append("g")
             .attr("transform", `translate(${margin.left},0)`)
-            .call(d3.axisLeft(yScale));
+            .call(d3.axisLeft(yScale).ticks(5));
 
         const tooltip = d3.select(chartRef.current)
             .append("div")
             .style("position", "absolute")
             .style("visibility", "hidden")
-            .style("background", "#fff")
+            .style("background", "rgba(255, 255, 255, 0.8)")
             .style("border", "1px solid #ccc")
             .style("padding", "5px")
             .style("border-radius", "5px");
@@ -59,7 +59,7 @@ const BarChart = ({ data }) => {
             .on("mouseover", (event, d) => {
                 tooltip
                     .style("visibility", "visible")
-                    .html(`Bus Line: ${d.bus_line}<br>Yield: $${d.total_yield}`);
+                    .html(`Bus Line: ${d.bus_line}<br>Yield: ${d.total_yield.toFixed(2)} LEK`);
             })
             .on("mousemove", (event) => {
                 tooltip
@@ -71,7 +71,7 @@ const BarChart = ({ data }) => {
             });
     }, [data]);
 
-    return <div ref={chartRef}></div>;
+    return <div ref={chartRef} style={{ position: "relative" }}></div>;
 };
 
 export default BarChart;

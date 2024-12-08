@@ -16,14 +16,19 @@ const App = () => {
     const [timeSlotFilter, setTimeSlotFilter] = useState([]);
     const [busLineFilter, setBusLineFilter] = useState([]);
     const [ageGroupFilter, setAgeGroupFilter] = useState("All");
+    const [chartType, setChartType] = useState("Pie");
     const [currentPage, setCurrentPage] = useState(1);
     const rowsPerPage = 10;
 
     useEffect(() => {
         const getAggregatedData = async () => {
-            const data = await fetchAggregatedData();
-            setAggregatedData(data);
-            setFilteredData(data);
+            try {
+                const data = await fetchAggregatedData();
+                setAggregatedData(data);
+                setFilteredData(data);
+            } catch (error) {
+                console.error("Error fetching data:", error);
+            }
         };
         getAggregatedData();
     }, []);
@@ -44,7 +49,7 @@ const App = () => {
         () =>
             (
                 filteredData.reduce((sum, row) => sum + row.avg_yield_per_trip, 0) /
-                filteredData.length || 0
+                (filteredData.length || 1)
             ).toFixed(2),
         [filteredData]
     );
@@ -94,10 +99,11 @@ const App = () => {
     const groupedByTimeSlot = useMemo(() => {
         return filteredData.reduce((acc, row) => {
             if (!acc[row.time_slot]) {
-                acc[row.time_slot] = { total_revenue: 0, total_trips: 0 };
+                acc[row.time_slot] = { total_revenue: 0, total_trips: 0, total_yield: 0 };
             }
             acc[row.time_slot].total_revenue += row.total_revenue;
             acc[row.time_slot].total_trips += row.total_trips;
+            acc[row.time_slot].total_yield += row.total_yield || 0;
             return acc;
         }, {});
     }, [filteredData]);
@@ -107,6 +113,7 @@ const App = () => {
             time_slot: key,
             total_revenue: groupedByTimeSlot[key].total_revenue,
             total_trips: groupedByTimeSlot[key].total_trips,
+            total_yield: groupedByTimeSlot[key].total_yield,
         }));
     }, [groupedByTimeSlot]);
 
@@ -134,6 +141,11 @@ const App = () => {
         return Object.values(grouped);
     }, [filteredData]);
 
+    const handleDrillDown = (ageGroup) => {
+        const filtered = aggregatedData.filter((item) => item.age_group === ageGroup);
+        setFilteredData(filtered);
+    };
+
     const downloadCSV = () => {
         const csvHeaders = [
             `"Time Slot"`,
@@ -143,33 +155,47 @@ const App = () => {
             `"Total Trips"`,
             `"Average Yield Per Trip (LEK)"`,
         ].join(",");
-    
+        const summaryRow = [
+            "",
+            "",
+            "Summary",
+            `"${totalRevenue}"`,
+            `"${totalTrips}"`,
+            `"${avgYield}"`,
+        ].join(",");
+
         const csvRows = filteredData
             .map(
                 (row) =>
                     `"${row.time_slot}","${row.bus_line}","${row.age_group}","${row.total_revenue}","${row.total_trips}","${row.avg_yield_per_trip}"`
             )
             .join("\n");
-    
-        const csvContent = `${csvHeaders}\n${csvRows}`;
+
+        const csvContent = `${csvHeaders}\n${csvRows}\n${summaryRow}`;
         const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
         saveAs(blob, "filtered_aggregated_data.csv");
     };
-    
+
     const downloadPDF = async () => {
         const container = document.querySelector(".container");
         const canvas = await html2canvas(container);
         const imgData = canvas.toDataURL("image/png");
-    
+
         const pdf = new jsPDF("p", "mm", "a4");
         pdf.text(`Filters Applied:`, 10, 10);
         pdf.text(`Time Slots: ${timeSlotFilter.map((t) => t.label).join(", ") || "All"}`, 10, 20);
         pdf.text(`Bus Lines: ${busLineFilter.map((b) => b.label).join(", ") || "All"}`, 10, 30);
-        pdf.text(`Age Groups: ${ageGroupFilter.map((a) => a.label).join(", ") || "All"}`, 10, 40);
-    
-        pdf.addImage(imgData, "PNG", 10, 50, 190, 120);
+        pdf.text(`Age Groups: ${ageGroupFilter}`, 10, 40);
+
+        pdf.text(`Summary:`, 10, 50);
+        pdf.text(`Total Trips: ${totalTrips.toLocaleString()}`, 10, 60);
+        pdf.text(`Total Yield: ${totalYield} LEK`, 10, 70);
+        pdf.text(`Total Revenue: ${totalRevenue} LEK`, 10, 80);
+        pdf.text(`Average Yield Per Trip: ${avgYield} LEK`, 10, 90);
+
+        pdf.addImage(imgData, "PNG", 10, 100, 190, 120);
         pdf.save("dashboard_filtered_data.pdf");
-    };    
+    };
 
     return (
         <div className="container mt-5">
@@ -244,20 +270,17 @@ const App = () => {
             </div>
             <div className="row mb-4">
                 <div className="col-md-12">
-                    <h2>Time Slot Trends</h2>
-                    <LineChart data={timeSlotTrends} xKey="time_slot" yKey="total_revenue" />
-                </div>
-            </div>
-            <div className="row mb-4">
-                <div className="col-md-12">
-                    <h2>Yield by Bus Line</h2>
-                    <BarChart data={barChartData} xKey="bus_line" yKey="total_yield" />
-                </div>
-            </div>
-            <div className="row mb-4">
-                <div className="col-md-12">
-                    <h2>Demographic Distribution (Yield by Age Group)</h2>
-                    <PieChart data={pieChartData} xKey="age_group" yKey="total_revenue" />
+                    <select
+                        className="form-select mb-3"
+                        onChange={(e) => setChartType(e.target.value)}
+                    >
+                        <option value="Pie">Pie Chart</option>
+                        <option value="Bar">Bar Chart</option>
+                        <option value="Line">Line Chart</option>
+                    </select>
+                    {chartType === "Pie" && <PieChart data={pieChartData} onDrillDown={handleDrillDown} />}
+                    {chartType === "Bar" && <BarChart data={barChartData} />}
+                    {chartType === "Line" && <LineChart data={timeSlotTrends} />}
                 </div>
             </div>
             <div className="row">

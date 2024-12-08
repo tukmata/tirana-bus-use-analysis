@@ -7,26 +7,36 @@ const LineChart = ({ data }) => {
     useEffect(() => {
         if (data.length === 0) return;
 
+        // Sanitize data
+        const sanitizedData = data.filter(
+            (d) => d.time_slot !== undefined && !isNaN(d.total_yield)
+        );
+
+        if (sanitizedData.length === 0) {
+            console.error("No valid data available for LineChart.");
+            return;
+        }
+
         const width = 800;
         const height = 400;
         const margin = { top: 20, right: 30, bottom: 50, left: 50 };
 
-        d3.select(chartRef.current).select("svg").remove(); // Clear previous chart
+        d3.select(chartRef.current).select("svg").remove();
 
         const svg = d3
             .select(chartRef.current)
             .append("svg")
-            .attr("width", width)
-            .attr("height", height);
+            .attr("viewBox", `0 0 ${width} ${height}`)
+            .attr("preserveAspectRatio", "xMidYMid meet");
 
         const xScale = d3
             .scalePoint()
-            .domain(data.map((d) => d.time_slot))
+            .domain(sanitizedData.map((d) => d.time_slot))
             .range([margin.left, width - margin.right]);
 
         const yScale = d3
             .scaleLinear()
-            .domain([0, d3.max(data, (d) => d.total_yield)])
+            .domain([0, d3.max(sanitizedData, (d) => d.total_yield)])
             .range([height - margin.bottom, margin.top]);
 
         svg.append("g")
@@ -35,7 +45,7 @@ const LineChart = ({ data }) => {
 
         svg.append("g")
             .attr("transform", `translate(${margin.left},0)`)
-            .call(d3.axisLeft(yScale));
+            .call(d3.axisLeft(yScale).ticks(5));
 
         const line = d3
             .line()
@@ -44,7 +54,7 @@ const LineChart = ({ data }) => {
             .curve(d3.curveMonotoneX);
 
         svg.append("path")
-            .datum(data)
+            .datum(sanitizedData)
             .attr("fill", "none")
             .attr("stroke", "steelblue")
             .attr("stroke-width", 2)
